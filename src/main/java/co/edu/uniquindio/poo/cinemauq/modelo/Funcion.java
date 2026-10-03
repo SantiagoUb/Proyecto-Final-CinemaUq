@@ -1,69 +1,82 @@
 package co.edu.uniquindio.poo.cinemauq.modelo;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
-public class Funcion {
+public class Funcion implements PrototipoFuncion<Funcion>{
 
-    private int id;
-    private Pelicula pelicula;
-    private Sala sala;
-    private LocalDateTime fechaHora;
+    private final String id = GeneradorId.siguiente("[FUNCION]");
+    private final Pelicula pelicula;
+    private final Sala sala;
+    private final LocalDateTime inicio;
+    private final Long precioBase;
+    private EstadoFuncion estado = EstadoFuncion.PROGRAMADA;
+    private final Set<String> asientosOcupados = new HashSet<>();
 
-    private List<Asiento> asientosOcupados;
-
-    public Funcion(int id, Pelicula pelicula, Sala sala, LocalDateTime fechaHora) {
-        this.id = id;
+    public Funcion(Pelicula pelicula, Sala sala, LocalDateTime inicio, Long precioBase) {
+        if(precioBase <= 0 ) throw new IllegalArgumentException("Precio de la funcion invalido");
         this.pelicula = pelicula;
         this.sala = sala;
-        this.fechaHora = fechaHora;
-        this.asientosOcupados = new ArrayList<>();
+        this.inicio = inicio;
+        this.precioBase = precioBase;
     }
 
-    /*
-     * Verifica si un asiento está disponible para esta función.
-     */
-    public boolean estaDisponible(Asiento asiento) {
-        return !asientosOcupados.contains(asiento);
+    //Constructor para las copias
+    private Funcion(Funcion prototipoFuncion, LocalDateTime nuevoInicio) {
+        this(prototipoFuncion.pelicula, prototipoFuncion.sala, prototipoFuncion.inicio, prototipoFuncion.precioBase);
     }
 
-    public boolean ocuparAsiento(Asiento asiento) {
-        //Verificamos que el asiento pertenece a la sala
-        if(!sala.getAsientos().contains(asiento)) {
-            return false;
+    @Override
+    public Funcion clonar() {
+        return new Funcion(this, inicio);
+    }
+
+    //metodo para saber si un asiento esta ocupado
+    public synchronized boolean estaDisponible(String idAsiento){
+        return estado == EstadoFuncion.PROGRAMADA && sala.getAsientos() != null && !asientosOcupados.contains(idAsiento);
+    }
+
+    //metodo para reservar un asiento
+    public synchronized void reservar(Collection<String> ids, LocalDateTime ahora){
+        if(estado != EstadoFuncion.PROGRAMADA)  throw new IllegalStateException("La funcion esta Cancelada");
+        if(inicio.isAfter(ahora)) throw new IllegalArgumentException("La funcion ya comenzo");
+        for(String a: ids){
+            if(sala.getAsiento(a) == null) throw new IllegalStateException("El asiento " + a + " no existe en la sala");
+            if(asientosOcupados.contains(a))throw new IllegalStateException("El asiento " + a + " ya fue vendido");
         }
-        //Verificamos que el asiento no se compre dos veces
-        if(asientosOcupados.contains(asiento)) {
-            return false;
-        }
-        asientosOcupados.add(asiento);
-        return true;
+        asientosOcupados.addAll(ids);
     }
 
-    //Liberar un asiento ocupado
-    public boolean liberarAsiento(Asiento asiento) {
-        return asientosOcupados.remove(asiento);
+    public synchronized void liberar(Collection<String> ids){
+        asientosOcupados.removeAll(ids);
     }
 
-    // Getters
-    public int getId() {
-        return id;
-    }    public Pelicula getPelicula() {
-        return pelicula;
+    public synchronized void cancelar(){
+        estado = EstadoFuncion.CANCELADA;
     }
 
-    public Sala getSala() {
-        return sala;
+    public synchronized double ocupacion(){
+        return (double) asientosOcupados.size() / sala.capacidad();
     }
 
-    public LocalDateTime getFechaHora() {
-        return fechaHora;
+    public synchronized Set<String> getAsientosOcupados(){
+        return Collections.unmodifiableSet(new HashSet<>(asientosOcupados));
     }
 
-    public List<Asiento> getAsientosOcupados() {
-        return asientosOcupados;
-    }
 
+    public LocalDateTime getFin() { return inicio.plusMinutes(pelicula.getDuracionMin()); }
+    public String getId() { return id; }
+    public Pelicula getPelicula() { return pelicula; }
+    public Sala getSala() { return sala; }
+    public LocalDateTime getInicio() { return inicio; }
+    public long getPrecio() { return precioBase; }
+    public EstadoFuncion getEstado() { return estado; }
+
+    @Override
+    public String toString() {
+        return id + " " + pelicula + " @ " + sala.getNombre() + " " + inicio;
+    }
 }

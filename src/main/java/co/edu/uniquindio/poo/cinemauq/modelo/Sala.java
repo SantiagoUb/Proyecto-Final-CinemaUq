@@ -1,41 +1,40 @@
 package co.edu.uniquindio.poo.cinemauq.modelo;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class Sala {
+    private final String id = GeneradorId.siguiente("[SALA]");
+    private final String nombre;
+    private final TipoSala tipo;
+    private final Map<String, Asiento> asientos = new LinkedHashMap<>();
 
-    private int id;
-    private String nombre;
-    private List<Asiento> asientos;
-
-    public Sala(int id, String nombre) {
-        this.id = id;
+    //Genera la distribucion de asientos: filas A, B ,C ... y columnas 1..n.
+    public Sala(String nombre, TipoSala tipo, int filas, int columnas) {
+        if(filas < 1 || filas > 26 || columnas < 1 || columnas > 26) throw new IllegalArgumentException("Distribucion no valida");
         this.nombre = nombre;
-        this.asientos = new ArrayList<>();
+        this.tipo = tipo;
+        for (int i = 0; i < filas; i++) {
+            TipoAsiento ta = tipo == TipoSala.SALA_VIP ? TipoAsiento.VIP
+                    : (i >= filas / 3 && i < 2 * filas / 3 + 1 ? TipoAsiento.PREFERENCIAL : TipoAsiento.GENERAL);
+            for (int c = 1; c <= columnas; c++) {
+                Asiento a = new Asiento((char) ('A' + i), c, ta);
+                asientos.put(a.id(), a);
+            }
+        }
     }
 
-    public void agregarAsiento(Asiento asiento) {
-        asientos.add(asiento);
-    }
+    public String getId() { return id; }
+    public String getNombre() { return nombre; }
+    public TipoSala getTipo() { return tipo; }
+    public int capacidad() { return asientos.size(); }
+    public Map<String, Asiento> getAsientos() { return Collections.unmodifiableMap(asientos); }
 
-    public void eliminarAsiento(Asiento asiento) {
-        asientos.remove(asiento);
-    }
+    public Asiento getAsiento(String idAsiento) { return asientos.get(idAsiento); }
 
-    public int getId() {
-        return id;
-    }
-
-    public String getNombre() {
-        return nombre;
-    }
-
-    public List<Asiento> getAsientos() {
-        return asientos;
-    }
-
-    public int getCapacidad() {
-        return asientos.size();
+    @Override
+    public String toString() {
+        return nombre + " [" + tipo + ", " + capacidad() + " asientos]";
     }
 }
